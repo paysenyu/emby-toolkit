@@ -94,6 +94,14 @@ class P115BigPackageModeTests(unittest.TestCase):
             )
         )
 
+    def test_should_force_nested_package_scan_for_generic_root_even_if_children_are_tv(self):
+        self.assertTrue(task_p115._should_force_nested_package_scan("2026"))
+        self.assertTrue(task_p115._should_force_nested_package_scan("电视剧"))
+        self.assertTrue(task_p115._should_force_nested_package_scan("合集"))
+        self.assertFalse(task_p115._should_force_nested_package_scan("罪无可逃 (2026)"))
+        self.assertFalse(task_p115._should_force_nested_package_scan("罪无可逃 (2026) {tmdb=123}"))
+        self.assertFalse(task_p115._should_force_nested_package_scan("Season 1"))
+
     def test_choose_big_package_context_name_prefers_last_non_generic_parent(self):
         self.assertEqual(
             task_p115._choose_big_package_context_name("外层合集", "xxx合集/2026/真爱下一位"),

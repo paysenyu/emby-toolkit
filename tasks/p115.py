@@ -106,6 +106,16 @@ def _should_use_filewise_big_package(top_name, is_tv_group, has_season_dir, has_
     return len(valid_video_files) > 1
 
 
+def _should_force_nested_package_scan(top_name):
+    if not _is_generic_package_segment(top_name):
+        return False
+    if _name_has_tmdb_tag(top_name):
+        return False
+    if _name_has_tv_hint(top_name) or _name_is_season_dir(top_name):
+        return False
+    return True
+
+
 def _build_filewise_big_package_groups(gathered_files, top_name, ai_translator=None, use_ai=False):
     grouped = {}
     unresolved = []
@@ -324,6 +334,7 @@ def task_scan_and_organize_115(processor=None):
             top_id = root_item.get('fid') or root_item.get('file_id')
             fc_val = str(root_item.get('fc') if root_item.get('fc') is not None else root_item.get('type'))
             is_folder = (fc_val == '0')
+            force_nested_package_scan = bool(is_folder and _should_force_nested_package_scan(top_name))
 
             local_processed = 0
             local_unidentified = []
@@ -381,14 +392,14 @@ def task_scan_and_organize_115(processor=None):
                             c_is_season_dir = c_is_folder and _name_is_season_dir(c_name)
                             
                             if c_is_folder:
-                                if c_is_season_dir or c_is_tv_hint:
+                                if not force_nested_package_scan and (c_is_season_dir or c_is_tv_hint):
                                     is_tv_group = True
                                     if c_is_season_dir: has_season_dir = True
                                 
                                 has_tmdb = _name_has_tmdb_tag(top_name)
                                 
                                 # ★ 核心提速：如果是剧集或已标记TMDB，绝不可能是大杂烩，直接把文件夹当做 item 塞进去，不再深入！
-                                if depth > 0 and (is_tv_group or has_tmdb):
+                                if depth > 0 and not force_nested_package_scan and (is_tv_group or has_tmdb):
                                     child['_etk_rel_dir'] = rel_dir
                                     gathered_files.append(child)
                                 else:
@@ -400,7 +411,8 @@ def task_scan_and_organize_115(processor=None):
                                 c_ext = c_name.split('.')[-1].lower() if '.' in c_name else ''
                                 if c_ext in allowed_exts:
                                     gathered_files.append(child)
-                                    if c_is_tv_hint: is_tv_group = True
+                                    if c_is_tv_hint and not force_nested_package_scan:
+                                        is_tv_group = True
                                 else:
                                     if c_ext not in KNOWN_SKIP_EXTS:
                                         local_unidentified.append(child)
@@ -422,7 +434,7 @@ def task_scan_and_organize_115(processor=None):
                         if file_size > MIN_BIG_PACKAGE_VIDEO_SIZE:
                             valid_video_files.append(f)
                 
-                if _should_use_filewise_big_package(top_name, is_tv_group, has_season_dir, has_tmdb, valid_video_files):
+                if force_nested_package_scan or _should_use_filewise_big_package(top_name, is_tv_group, has_season_dir, has_tmdb, valid_video_files):
                     logger.info(f"  ➜ [大包模式] 检测到深层嵌套资源目录 '{top_name}'，执行逐文件识别...")
                     filewise_groups, filewise_unresolved = _build_filewise_big_package_groups(
                         gathered_files,
