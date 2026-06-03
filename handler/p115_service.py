@@ -6818,6 +6818,21 @@ def _batch_manual_correct(record_ids, tmdb_id, media_type, target_cid, season_nu
 
     if sub_items:
         if root_items:
+            def _extract_manual_subtitle_season(*texts):
+                for text in texts:
+                    if not text:
+                        continue
+                    match = re.search(r'(?:^|[ \.\-\_\[\(])(?:s|S)(\d{1,4})(?:[ \.\-]*(?:e|E|p|P)\d{1,4}\b)?', text, re.IGNORECASE)
+                    if match:
+                        return int(match.group(1))
+                    match = re.search(r'Season\s*(\d{1,4})\b', text, re.IGNORECASE)
+                    if match:
+                        return int(match.group(1))
+                    match = re.search(r'第(\d{1,4})季', text)
+                    if match:
+                        return int(match.group(1))
+                return None
+
             subtitle_video_names = {}
             for r_item in root_items:
                 info_name = (
@@ -6829,7 +6844,7 @@ def _batch_manual_correct(record_ids, tmdb_id, media_type, target_cid, season_nu
                 )
                 if not info_name:
                     continue
-                season_key = _extract_season_number(info_name)
+                season_key = _extract_manual_subtitle_season(info_name)
                 episode_key = None
                 match = re.search(
                     r'(?:^|[ \.\-\_\[\(])(?:s|S)(\d{1,4})[ \.\-]*(?:e|E|p|P)(\d{1,4})\b'
